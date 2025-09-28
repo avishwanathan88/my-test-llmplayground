@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Playground</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-brain"></i>
+                <h1>LLM Playground</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" id="clearBtn">
+                    <i class="fas fa-trash"></i> Clear
+                </button>
+                <button class="btn-primary" id="saveBtn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar - Hidden for centered layout -->
+            <aside class="sidebar">
+            <div class="section">
+                <h3>Model Parameters</h3>
+                    
+                    <div class="parameter-group">
+                        <label for="modelProvider">Model Provider</label>
+                        <select id="modelProvider" class="modern-select">
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="google">Google</option>
+                            <option value="groq">Groq</option>
+                        </select>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="modelSelection">Model Selection</label>
+                        <select id="modelSelection" class="modern-select">
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="parameter-group">
+                        <label for="temperature">Temperature: <span id="tempValue">0.7</span></label>
+                        <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="slider">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="maxTokens">Max Tokens: <span id="tokensValue">1024</span></label>
+                        <input type="range" id="maxTokens" min="1" max="4096" step="1" value="1024" class="slider">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="presencePenalty">Presence Penalty: <span id="presenceValue">0.0</span></label>
+                        <input type="range" id="presencePenalty" min="-2" max="2" step="0.1" value="0" class="slider">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="frequencyPenalty">Frequency Penalty: <span id="frequencyValue">0.0</span></label>
+                        <input type="range" id="frequencyPenalty" min="-2" max="2" step="0.1" value="0" class="slider">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="seed">Seed (optional)</label>
+                        <input type="number" id="seed" class="number-input" placeholder="Random seed">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="stopSequence">Stop Sequence</label>
+                        <input type="text" id="stopSequence" class="text-input" placeholder="e.g., \n, END">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="systemPrompt">System Prompt</label>
+                        <textarea id="systemPrompt" class="text-input" rows="3" placeholder="Enter system prompt to guide the AI's behavior..."></textarea>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label for="templateSelect">Templates</label>
+                        <select id="templateSelect" class="select-input">
+                            <option value="">Select a template...</option>
+                            <option value="creative">Creative Writing</option>
+                            <option value="code">Code Assistant</option>
+                            <option value="analysis">Data Analysis</option>
+                            <option value="chat">Casual Chat</option>
+                        </select>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label>Safety Guards</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="promptGuard" checked>
+                                <span class="checkmark"></span>
+                                Prompt Safety Guard
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="responseGuard" checked>
+                                <span class="checkmark"></span>
+                                Response Safety Guard
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Chat Area -->
+            <main class="chat-area">
+                <div class="centered-chat-container">
+                    <!-- Welcome Message -->
+                    <div class="welcome-section">
+                        <h1 class="main-title">Welcome to LLM Playground</h1>
+                        <p class="main-subtitle">Select a model from the sidebar and start chatting!</p>
+                    </div>
+                    
+                    <!-- Chat Messages (Hidden initially, positioned above input) -->
+                    <div class="chat-messages" id="chatMessages" style="display: none;">
+                    </div>
+                    
+                    <!-- Centered Input Area (Fixed at bottom) -->
+                    <div class="centered-input-area">
+                        <div class="modern-input-container">
+                            <button id="addBtn" class="input-icon-btn add-btn" title="Add Content">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                            </button>
+                            <textarea id="userInput" placeholder="Ask anything" rows="1"></textarea>
+                            <div class="input-right-actions">
+                                <button id="voiceBtn" class="input-icon-btn voice-btn" title="Voice Input">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                                    </svg>
+                                </button>
+                                <button id="sendBtn" class="input-icon-btn send-btn" title="Send">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+                                    </svg>
+                                </button>
+                                <button id="stopBtn" class="input-icon-btn stop-btn" title="Stop" style="display: none;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Default Prompt Suggestions -->
+                        <div class="prompt-suggestions">
+                            <div class="prompt-card" data-prompt="Explain quantum computing in simple terms">
+                                <div class="prompt-icon">🔬</div>
+                                <div class="prompt-text">
+                                    <div class="prompt-title">Explain quantum computing</div>
+                                    <div class="prompt-subtitle">in simple terms</div>
+                                </div>
+                            </div>
+                            
+                            <div class="prompt-card" data-prompt="Write a creative story about a time traveler">
+                                <div class="prompt-icon">✨</div>
+                                <div class="prompt-text">
+                                    <div class="prompt-title">Write a creative story</div>
+                                    <div class="prompt-subtitle">about a time traveler</div>
+                                </div>
+                            </div>
+                            
+                            <div class="prompt-card" data-prompt="Help me plan a healthy meal for the week">
+                                <div class="prompt-icon">🥗</div>
+                                <div class="prompt-text">
+                                    <div class="prompt-title">Plan a healthy meal</div>
+                                    <div class="prompt-subtitle">for the week</div>
+                                </div>
+                            </div>
+                            
+                            <div class="prompt-card" data-prompt="Explain the basics of machine learning">
+                                <div class="prompt-icon">🤖</div>
+                                <div class="prompt-text">
+                                    <div class="prompt-title">Explain machine learning</div>
+                                    <div class="prompt-subtitle">basics</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal" id="loadingModal">
+        <div class="modal-content">
+            <div class="loading-spinner"></div>
+            <p>Generating response...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

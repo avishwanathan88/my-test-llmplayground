@@ -1,0 +1,18 @@
+Goal: Building a simple llm playground
+Models:
+    - GEMINI
+    - OPENAI
+    - GROQ
+Model settings
+    - temperature
+    - output tokens
+    - presence penalty
+    - frequence penalty
+    - system prompt
+    - seed
+Guardrails
+    - prompt safety guard -- prompt guard
+    - response safety settings - llama guard
+Voice input
+
+Voice output
