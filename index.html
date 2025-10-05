@@ -16,6 +16,9 @@
                 <h1>LLM Playground</h1>
             </div>
             <div class="header-actions">
+                <button class="btn-secondary" id="settingsBtn" title="Manage API Keys">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
                 <button class="btn-secondary" id="clearBtn">
                     <i class="fas fa-trash"></i> Clear
                 </button>
@@ -28,6 +31,25 @@
         <div class="main-content">
             <!-- Sidebar - Hidden for centered layout -->
             <aside class="sidebar">
+            <!-- API Keys Section - Hidden (managed through setup modal) -->
+            <div class="api-keys-section" style="display: none;">
+                <div class="input-group">
+                    <input type="password" id="openaiKey" />
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="anthropicKey" />
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="googleKey" />
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="groqKey" />
+                </div>
+            </div>
+
             <div class="section">
                 <h3>Model Parameters</h3>
                     

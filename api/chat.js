@@ -1,12 +1,10 @@
 const axios = require('axios');
 
-// API Key mapping for different providers
+// API Key mapping for different providers - REMOVED for security
+// Users must provide their own API keys
 const API_KEYS = {
-    openai: process.env.OPENAI_API_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    google: process.env.GOOGLE_API_KEY,
-    groq: process.env.GROQ_API_KEY,
-    huggingface: process.env.HF_TOKEN
+    // Server-side keys removed to prevent personal key usage
+    // All keys must be provided by users
 };
 
 // API endpoints for different providers
@@ -19,12 +17,13 @@ const API_ENDPOINTS = {
 };
 
 // Secure API key retrieval function
-function getAPIKey(provider) {
-    const key = API_KEYS[provider];
-    if (!key) {
-        throw new Error(`API key not found for provider: ${provider}`);
+function getAPIKey(provider, userApiKeys = null) {
+    // User API keys are now mandatory
+    if (!userApiKeys || !userApiKeys[provider]) {
+        throw new Error(`API key required for provider: ${provider}. Please provide your own API key in the settings.`);
     }
-    return key;
+    
+    return userApiKeys[provider];
 }
 
 // Validate provider and model
@@ -131,13 +130,13 @@ module.exports = async (req, res) => {
     try {
         console.log('Received API request:', req.body);
         
-        const { provider, model, message, parameters = {} } = req.body;
+        const { provider, model, message, parameters = {}, userApiKeys } = req.body;
         
         // Validate request
         validateRequest(provider, model);
         
-        // Get API key for the provider
-        const apiKey = getAPIKey(provider);
+        // Get API key for the provider (user keys take priority)
+        const apiKey = getAPIKey(provider, userApiKeys);
         
         // Format request based on provider
         const requestData = formatRequest(provider, model, message, parameters);

@@ -1,12 +1,20 @@
 # Deploying LLM Playground to Vercel
 
-This guide will help you deploy your LLM Playground to Vercel with all the necessary configurations.
+This guide will help you deploy your LLM Playground to Vercel with the new mandatory user API key system.
+
+## 🔒 **Important Security Update**
+
+This application now uses a **mandatory user API key system** for enhanced security:
+- **No server-side API keys** are stored or used
+- **Users must provide their own API keys** during first-time setup
+- **API keys are stored locally** in the user's browser using localStorage
+- **Complete cost control** - users are charged directly by AI providers
 
 ## Prerequisites
 
 1. A [Vercel account](https://vercel.com)
 2. [Vercel CLI](https://vercel.com/cli) installed (optional but recommended)
-3. API keys for the LLM providers you want to use
+3. **No API keys needed for deployment** - users will provide their own
 
 ## Deployment Steps
 
@@ -18,18 +26,8 @@ This guide will help you deploy your LLM Playground to Vercel with all the neces
    - Import your GitHub/GitLab repository
    - Vercel will automatically detect the project settings
 
-2. **Configure Environment Variables:**
-   In the Vercel dashboard, go to your project settings and add these environment variables:
-
-   ```
-   OPENAI_API_KEY=your_openai_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   GOOGLE_API_KEY=your_google_api_key_here
-   GROQ_API_KEY=your_groq_api_key_here
-   HF_TOKEN=your_huggingface_token_here
-   ```
-
-   **Note:** You only need to add the API keys for the providers you plan to use.
+2. **No Environment Variables Required:**
+   Since the application now uses mandatory user-provided API keys, you don't need to configure any environment variables for API keys.
 
 3. **Deploy:**
    - Click "Deploy"
@@ -52,21 +50,25 @@ This guide will help you deploy your LLM Playground to Vercel with all the neces
    vercel
    ```
 
-4. **Add environment variables:**
-   ```bash
-   vercel env add OPENAI_API_KEY
-   vercel env add ANTHROPIC_API_KEY
-   vercel env add GOOGLE_API_KEY
-   vercel env add GROQ_API_KEY
-   vercel env add HF_TOKEN
-   ```
-
-5. **Redeploy with environment variables:**
+4. **Deploy to production:**
    ```bash
    vercel --prod
    ```
 
-## Getting API Keys
+## User Experience After Deployment
+
+### First-Time Users
+1. **Mandatory Setup:** Users will see a setup modal requiring API key configuration
+2. **One-Time Process:** Keys are stored locally and persist across sessions
+3. **Provider Choice:** Users can configure keys for any combination of providers
+4. **Secure Storage:** Keys never leave the user's browser
+
+### Returning Users
+1. **Automatic Loading:** Previously configured keys are loaded automatically
+2. **Settings Management:** Users can update keys via the settings button (⚙️)
+3. **Full Control:** Users can add, update, or clear their stored keys anytime
+
+## How Users Get API Keys
 
 ### OpenAI
 1. Go to [platform.openai.com](https://platform.openai.com)

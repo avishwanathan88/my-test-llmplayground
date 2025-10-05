@@ -9,6 +9,8 @@ class LLMPlayground {
         this.bindEvents();
         this.loadTemplates();
         this.updateParameterDisplays();
+        this.loadStoredApiKeys(); // Load API keys from localStorage
+        this.checkApiKeySetup(); // Check if setup is needed
     }
 
     initializeElements() {
@@ -27,9 +29,18 @@ class LLMPlayground {
         this.stopSequence = document.getElementById('stopSequence');
         this.clearBtn = document.getElementById('clearBtn');
         this.saveBtn = document.getElementById('saveBtn');
+        this.settingsBtn = document.getElementById('settingsBtn');
         this.voiceBtn = document.getElementById('voiceBtn');
         this.attachBtn = document.getElementById('attachBtn');
         this.loadingModal = document.getElementById('loadingModal');
+        
+        // API Key elements
+        this.apiKeyToggle = document.getElementById('apiKeyToggle');
+        this.apiKeysSection = document.getElementById('apiKeysSection');
+        this.openaiKey = document.getElementById('openaiKey');
+        this.anthropicKey = document.getElementById('anthropicKey');
+        this.googleKey = document.getElementById('googleKey');
+        this.groqKey = document.getElementById('groqKey');
         
         // Model options for each provider
         this.modelOptions = {
@@ -99,7 +110,26 @@ class LLMPlayground {
         // Action button events
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearChat());
         if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.saveConversation());
+        if (this.settingsBtn) this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
         if (this.voiceBtn) this.voiceBtn.addEventListener('click', () => this.handleVoiceInput());
+        
+        // API Key toggle event
+        if (this.apiKeyToggle) {
+            this.apiKeyToggle.addEventListener('change', () => this.toggleApiKeySection());
+        }
+        
+        // Auto-save API keys when they change
+        const apiKeyInputs = [this.openaiKey, this.anthropicKey, this.googleKey, this.groqKey];
+        apiKeyInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', () => {
+                    // Debounce the save operation
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(() => this.saveApiKeys(), 1000);
+                });
+            }
+        });
+        
         if (this.attachBtn) this.attachBtn.addEventListener('click', () => this.handleFileAttachment());
 
         // Initialize model options
@@ -304,6 +334,14 @@ class LLMPlayground {
         // Hide prompt suggestions when sending a message
         this.hidePromptSuggestions();
 
+        try {
+            // Validate API key if using user keys
+            this.checkUserApiKeyForProvider(this.modelProvider.value);
+        } catch (error) {
+            this.addMessage(error.message, 'error');
+            return;
+        }
+
         // Add user message to chat
         this.addMessage(message, 'user');
         this.userInput.value = '';
@@ -348,6 +386,9 @@ class LLMPlayground {
                 }
             };
             
+            // Add user API keys (now mandatory)
+            requestData.userApiKeys = this.getUserApiKeys();
+            
             console.log(`Making API call to ${provider} with model ${model}`, requestData);
             
             // Make API call to backend
@@ -379,11 +420,81 @@ class LLMPlayground {
             
             // Handle specific error types
             if (error.message.includes('API key not configured')) {
-                throw new Error(`API key not configured for ${this.modelProvider.value}. Please check your .env file.`);
+                if (this.apiKeyToggle && this.apiKeyToggle.checked) {
+                    throw new Error(`Please provide a valid API key for ${this.modelProvider.value} in the API Configuration section.`);
+                } else {
+                    throw new Error(`API key not configured for ${this.modelProvider.value}. Please check your .env file or use your own API keys.`);
+                }
             } else if (error.message.includes('fetch')) {
                 throw new Error('Unable to connect to the backend server. Please ensure the server is running.');
             } else {
                 throw new Error(`API Error: ${error.message}`);
+            }
+        }
+    }
+
+    getUserApiKeys() {
+        return {
+            openai: this.openaiKey ? this.openaiKey.value : '',
+            anthropic: this.anthropicKey ? this.anthropicKey.value : '',
+            google: this.googleKey ? this.googleKey.value : '',
+            groq: this.groqKey ? this.groqKey.value : ''
+        };
+    }
+
+    validateApiKey(provider, apiKey) {
+        if (!apiKey || apiKey.trim() === '') {
+            return false;
+        }
+
+        // Basic format validation for different providers
+        switch (provider) {
+            case 'openai':
+                return apiKey.startsWith('sk-') && apiKey.length > 20;
+            case 'anthropic':
+                return apiKey.startsWith('sk-ant-') && apiKey.length > 20;
+            case 'google':
+                return apiKey.startsWith('AIza') && apiKey.length > 20;
+            case 'groq':
+                return apiKey.startsWith('gsk_') && apiKey.length > 20;
+            default:
+                return apiKey.length > 10; // Basic length check for unknown providers
+        }
+    }
+
+    checkUserApiKeyForProvider(provider) {
+        // API keys are now mandatory - always validate user keys
+        const userKeys = this.getUserApiKeys();
+        const apiKey = userKeys[provider];
+        
+        if (!this.validateApiKey(provider, apiKey)) {
+            throw new Error(`Please provide a valid ${provider.toUpperCase()} API key. Expected format: ${this.getApiKeyFormat(provider)}`);
+        }
+        
+        return true;
+    }
+
+    getApiKeyFormat(provider) {
+        switch (provider) {
+            case 'openai':
+                return 'sk-...';
+            case 'anthropic':
+                return 'sk-ant-...';
+            case 'google':
+                return 'AIza...';
+            case 'groq':
+                return 'gsk_...';
+            default:
+                return 'Valid API key';
+        }
+    }
+
+    toggleApiKeySection() {
+        if (this.apiKeysSection) {
+            if (this.apiKeyToggle.checked) {
+                this.apiKeysSection.style.display = 'block';
+            } else {
+                this.apiKeysSection.style.display = 'none';
             }
         }
     }
@@ -552,6 +663,337 @@ class LLMPlayground {
         };
         
         input.click();
+    }
+
+    // Load stored API keys from localStorage
+    loadStoredApiKeys() {
+        const storedKeys = localStorage.getItem('llm_api_keys');
+        if (storedKeys) {
+            try {
+                const keys = JSON.parse(storedKeys);
+                // Populate the input fields with stored keys
+                if (keys.openai) this.openaiKey.value = keys.openai;
+                if (keys.anthropic) this.anthropicKey.value = keys.anthropic;
+                if (keys.google) this.googleKey.value = keys.google;
+                if (keys.groq) this.groqKey.value = keys.groq;
+                
+                // Enable the toggle if keys are stored
+                if (Object.keys(keys).length > 0) {
+                    this.apiKeyToggle.checked = true;
+                    this.toggleApiKeySection();
+                }
+            } catch (error) {
+                console.error('Error loading stored API keys:', error);
+            }
+        }
+    }
+
+    // Save API keys to localStorage
+    saveApiKeys() {
+        const keys = this.getUserApiKeys();
+        if (Object.keys(keys).length > 0) {
+            localStorage.setItem('llm_api_keys', JSON.stringify(keys));
+        }
+    }
+
+    // Check if API key setup is needed
+    checkApiKeySetup() {
+        const storedKeys = localStorage.getItem('llm_api_keys');
+        const hasStoredKeys = storedKeys && Object.keys(JSON.parse(storedKeys)).length > 0;
+        
+        if (!hasStoredKeys) {
+            this.showSetupModal();
+        }
+    }
+
+    // Show mandatory setup modal
+    showSetupModal() {
+        // Create modal if it doesn't exist
+        if (!document.getElementById('setupModal')) {
+            this.createSetupModal();
+        }
+        
+        const modal = document.getElementById('setupModal');
+        modal.style.display = 'flex';
+        
+        // Disable main interface until setup is complete
+        document.querySelector('.main-content').style.pointerEvents = 'none';
+        document.querySelector('.main-content').style.opacity = '0.5';
+    }
+
+    // Hide setup modal and enable interface
+    hideSetupModal() {
+        const modal = document.getElementById('setupModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        
+        // Re-enable main interface
+        document.querySelector('.main-content').style.pointerEvents = 'auto';
+        document.querySelector('.main-content').style.opacity = '1';
+    }
+
+    // Create the setup modal HTML
+    createSetupModal() {
+        const modalHTML = `
+            <div id="setupModal" class="setup-modal">
+                <div class="setup-modal-content">
+                    <h2>🔑 API Key Setup Required</h2>
+                    <p>To use this LLM Playground, you need to provide your own API keys. This ensures your usage is billed to your account and keeps your keys secure.</p>
+                    
+                    <div class="setup-form">
+                        <div class="setup-section">
+                            <h3>Add Your API Keys</h3>
+                            <p class="setup-help">You only need to add keys for the providers you want to use:</p>
+                            
+                            <div class="setup-key-group">
+                                <label for="setupOpenaiKey">OpenAI API Key (optional)</label>
+                                <input type="password" id="setupOpenaiKey" placeholder="sk-..." />
+                                <small>Get your key from: <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="setupAnthropicKey">Anthropic API Key (optional)</label>
+                                <input type="password" id="setupAnthropicKey" placeholder="sk-ant-..." />
+                                <small>Get your key from: <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a></small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="setupGoogleKey">Google API Key (optional)</label>
+                                <input type="password" id="setupGoogleKey" placeholder="AIza..." />
+                                <small>Get your key from: <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="setupGroqKey">Groq API Key (optional)</label>
+                                <input type="password" id="setupGroqKey" placeholder="gsk_..." />
+                                <small>Get your key from: <a href="https://console.groq.com/keys" target="_blank">Groq Console</a></small>
+                            </div>
+                        </div>
+                        
+                        <div class="setup-actions">
+                            <button id="completeSetup" class="setup-btn primary" disabled>Complete Setup</button>
+                            <p class="setup-note">⚠️ You must add at least one API key to continue</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Bind setup modal events
+        this.bindSetupModalEvents();
+    }
+
+    // Bind events for setup modal
+    bindSetupModalEvents() {
+        const setupInputs = [
+            document.getElementById('setupOpenaiKey'),
+            document.getElementById('setupAnthropicKey'),
+            document.getElementById('setupGoogleKey'),
+            document.getElementById('setupGroqKey')
+        ];
+        
+        const completeBtn = document.getElementById('completeSetup');
+        
+        // Check if at least one key is provided
+        const checkSetupValidity = () => {
+            const hasAnyKey = setupInputs.some(input => input.value.trim().length > 0);
+            completeBtn.disabled = !hasAnyKey;
+        };
+        
+        // Add input listeners
+        setupInputs.forEach(input => {
+            input.addEventListener('input', checkSetupValidity);
+        });
+        
+        // Complete setup button
+        completeBtn.addEventListener('click', () => {
+            this.completeSetup();
+        });
+    }
+
+    // Complete the setup process
+    completeSetup() {
+        const setupKeys = {
+            openai: document.getElementById('setupOpenaiKey').value.trim(),
+            anthropic: document.getElementById('setupAnthropicKey').value.trim(),
+            google: document.getElementById('setupGoogleKey').value.trim(),
+            groq: document.getElementById('setupGroqKey').value.trim()
+        };
+        
+        // Remove empty keys
+        Object.keys(setupKeys).forEach(key => {
+            if (!setupKeys[key]) delete setupKeys[key];
+        });
+        
+        // Validate at least one key
+        if (Object.keys(setupKeys).length === 0) {
+            alert('Please provide at least one API key to continue.');
+            return;
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('llm_api_keys', JSON.stringify(setupKeys));
+        
+        // Update the main form
+        this.loadStoredApiKeys();
+        
+        // Hide setup modal
+        this.hideSetupModal();
+        
+        // Show success message
+        this.addMessage('✅ API keys configured successfully! You can now start chatting with AI models.', 'system');
+    }
+
+    // Show settings modal for key management
+    showSettingsModal() {
+        // Create settings modal if it doesn't exist
+        if (!document.getElementById('settingsModal')) {
+            this.createSettingsModal();
+        }
+        
+        const modal = document.getElementById('settingsModal');
+        modal.style.display = 'flex';
+    }
+
+    // Create settings modal HTML
+    createSettingsModal() {
+        const storedKeys = localStorage.getItem('llm_api_keys');
+        const keys = storedKeys ? JSON.parse(storedKeys) : {};
+        
+        const modalHTML = `
+            <div id="settingsModal" class="setup-modal">
+                <div class="setup-modal-content">
+                    <h2>⚙️ API Key Settings</h2>
+                    <p>Manage your stored API keys. Changes are saved automatically.</p>
+                    
+                    <div class="setup-form">
+                        <div class="setup-section">
+                            <h3>Your API Keys</h3>
+                            <p class="setup-help">Update or add new API keys:</p>
+                            
+                            <div class="setup-key-group">
+                                <label for="settingsOpenaiKey">OpenAI API Key</label>
+                                <input type="password" id="settingsOpenaiKey" placeholder="sk-..." value="${keys.openai || ''}" />
+                                <small>Status: ${keys.openai ? '✅ Configured' : '❌ Not set'}</small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="settingsAnthropicKey">Anthropic API Key</label>
+                                <input type="password" id="settingsAnthropicKey" placeholder="sk-ant-..." value="${keys.anthropic || ''}" />
+                                <small>Status: ${keys.anthropic ? '✅ Configured' : '❌ Not set'}</small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="settingsGoogleKey">Google API Key</label>
+                                <input type="password" id="settingsGoogleKey" placeholder="AIza..." value="${keys.google || ''}" />
+                                <small>Status: ${keys.google ? '✅ Configured' : '❌ Not set'}</small>
+                            </div>
+                            
+                            <div class="setup-key-group">
+                                <label for="settingsGroqKey">Groq API Key</label>
+                                <input type="password" id="settingsGroqKey" placeholder="gsk_..." value="${keys.groq || ''}" />
+                                <small>Status: ${keys.groq ? '✅ Configured' : '❌ Not set'}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="setup-actions">
+                            <button id="saveSettings" class="setup-btn primary">Save Changes</button>
+                            <button id="clearAllKeys" class="setup-btn" style="background: #ef4444; color: white; margin-left: 1rem;">Clear All Keys</button>
+                            <button id="closeSettings" class="setup-btn" style="background: #6b7280; color: white; margin-left: 1rem;">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Bind settings modal events
+        this.bindSettingsModalEvents();
+    }
+
+    // Bind events for settings modal
+    bindSettingsModalEvents() {
+        const saveBtn = document.getElementById('saveSettings');
+        const clearBtn = document.getElementById('clearAllKeys');
+        const closeBtn = document.getElementById('closeSettings');
+        
+        // Save settings
+        saveBtn.addEventListener('click', () => {
+            this.saveSettingsChanges();
+        });
+        
+        // Clear all keys
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all API keys? This will require you to set them up again.')) {
+                this.clearStoredApiKeys();
+                document.getElementById('settingsModal').style.display = 'none';
+            }
+        });
+        
+        // Close modal
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('settingsModal').style.display = 'none';
+        });
+        
+        // Close on backdrop click
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'settingsModal') {
+                document.getElementById('settingsModal').style.display = 'none';
+            }
+        });
+    }
+
+    // Save changes from settings modal
+    saveSettingsChanges() {
+        const settingsKeys = {
+            openai: document.getElementById('settingsOpenaiKey').value.trim(),
+            anthropic: document.getElementById('settingsAnthropicKey').value.trim(),
+            google: document.getElementById('settingsGoogleKey').value.trim(),
+            groq: document.getElementById('settingsGroqKey').value.trim()
+        };
+        
+        // Remove empty keys
+        Object.keys(settingsKeys).forEach(key => {
+            if (!settingsKeys[key]) delete settingsKeys[key];
+        });
+        
+        // Save to localStorage
+        if (Object.keys(settingsKeys).length > 0) {
+            localStorage.setItem('llm_api_keys', JSON.stringify(settingsKeys));
+            
+            // Update the main form
+            this.loadStoredApiKeys();
+            
+            // Show success message
+            this.addMessage('✅ API key settings updated successfully!', 'system');
+            
+            // Close modal
+            document.getElementById('settingsModal').style.display = 'none';
+        } else {
+            alert('Please provide at least one API key.');
+        }
+    }
+
+    // Clear stored API keys (for settings management)
+    clearStoredApiKeys() {
+        localStorage.removeItem('llm_api_keys');
+        
+        // Clear input fields
+        this.openaiKey.value = '';
+        this.anthropicKey.value = '';
+        this.googleKey.value = '';
+        this.groqKey.value = '';
+        
+        // Disable toggle
+        this.apiKeyToggle.checked = false;
+        this.toggleApiKeySection();
+        
+        // Show setup modal again
+        this.showSetupModal();
     }
 }
 

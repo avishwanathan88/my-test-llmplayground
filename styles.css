@@ -232,6 +232,65 @@ body {
     accent-color: #667eea;
 }
 
+/* Toggle Switch */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+}
+
+.toggle-checkbox {
+    display: none;
+}
+
+.toggle-label {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    background-color: #ccc;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #667eea;
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-slider {
+    transform: translateX(26px);
+}
+
+/* API Keys Section */
+.api-keys-section {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.help-text {
+    display: block;
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 /* Chat Area - Centered Layout */
 .chat-area {
     flex: 1;
@@ -766,4 +825,183 @@ body {
     color: #374151;
     margin-bottom: 0.5rem;
     letter-spacing: 0.025em;
+}
+
+/* Setup Modal Styles */
+.setup-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.setup-modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.setup-modal-content h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.setup-modal-content > p {
+    color: #6b7280;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.setup-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.setup-help {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.setup-key-group {
+    margin-bottom: 1.5rem;
+}
+
+.setup-key-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.setup-key-group input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: #f9fafb;
+}
+
+.setup-key-group input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.setup-key-group small {
+    display: block;
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.setup-key-group small a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.setup-key-group small a:hover {
+    text-decoration: underline;
+}
+
+.setup-actions {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.setup-btn {
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 150px;
+}
+
+.setup-btn.primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.setup-btn.primary:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.setup-btn:disabled {
+    background: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.setup-note {
+    color: #f59e0b;
+    font-size: 0.75rem;
+    margin-top: 1rem;
+    font-weight: 500;
+}
+
+/* Responsive setup modal */
+@media (max-width: 640px) {
+    .setup-modal-content {
+        padding: 1.5rem;
+        margin: 1rem;
+        width: calc(100% - 2rem);
+    }
+    
+    .setup-modal-content h2 {
+        font-size: 1.5rem;
+    }
 }
