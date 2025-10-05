@@ -334,6 +334,16 @@ class LLMPlayground {
         // Hide prompt suggestions when sending a message
         this.hidePromptSuggestions();
 
+        // Get current safety level
+        const safetyLevelElement = document.getElementById('safetyLevel');
+        const safetyLevel = safetyLevelElement ? safetyLevelElement.value : 'moderate';
+
+        // Check prompt safety based on selected level
+        if (this.containsUnsafeContent(message, safetyLevel)) {
+            this.addMessage(`Your message contains potentially unsafe content and has been blocked by the ${safetyLevel} safety filter. Try rephrasing your request or lowering the safety level if this is for legitimate research.`, 'error');
+            return;
+        }
+
         try {
             // Validate API key if using user keys
             this.checkUserApiKeyForProvider(this.modelProvider.value);
@@ -353,6 +363,13 @@ class LLMPlayground {
         try {
             // Call LLM API with current model and parameters
             const response = await this.callLLMAPI(message);
+            
+            // Check response safety based on selected level
+            if (this.containsUnsafeContent(response, safetyLevel)) {
+                this.addMessage(`The AI response was blocked by the ${safetyLevel} safety filter due to potentially unsafe content. The model may have generated content that violates safety guidelines.`, 'error');
+                return;
+            }
+            
             this.addMessage(response, 'assistant');
         } catch (error) {
             this.addMessage('Sorry, there was an error processing your request.', 'error');
@@ -499,12 +516,96 @@ class LLMPlayground {
         }
     }
 
-    containsUnsafeContent(text) {
-        // Simple safety check (in real implementation, use proper safety APIs)
-        const unsafeKeywords = ['harmful', 'dangerous', 'illegal'];
-        return unsafeKeywords.some(keyword => 
-            text.toLowerCase().includes(keyword)
-        );
+    containsUnsafeContent(text, safetyLevel = 'moderate') {
+        // Define keyword sets for different safety levels
+        const strictKeywords = [
+            // Violence and harm - comprehensive
+            'kill', 'murder', 'suicide', 'self-harm', 'violence', 'weapon', 'bomb', 'explosive',
+            'attack', 'assault', 'torture', 'abuse', 'harm', 'hurt', 'damage', 'destroy',
+            'death', 'killing', 'shoot', 'stab', 'poison', 'assassinate',
+            
+            // Illegal activities - comprehensive
+            'illegal', 'drug', 'cocaine', 'heroin', 'meth', 'steal', 'theft', 'fraud', 'scam',
+            'hack', 'piracy', 'counterfeit', 'forgery', 'money laundering', 'trafficking',
+            'break into', 'break in', 'burglar', 'robbery', 'criminal', 'crime',
+            
+            // Hate speech and discrimination
+            'hate', 'racist', 'sexist', 'homophobic', 'transphobic', 'discrimination',
+            'supremacy', 'nazi', 'fascist', 'terrorist', 'extremist',
+            
+            // Adult content
+            'porn', 'sexual', 'explicit', 'nude', 'nsfw', 'adult content',
+            
+            // Privacy violations
+            'personal information', 'social security', 'credit card', 'password', 'private data',
+            
+            // Dangerous instructions
+            'dangerous', 'hazardous', 'toxic', 'chemical weapon', 'biological weapon'
+        ];
+        
+        const moderateKeywords = [
+            // Core violence (excluding educational context)
+            'murder', 'suicide', 'bomb', 'explosive', 'torture', 'assassinate',
+            
+            // Serious illegal activities
+            'cocaine', 'heroin', 'meth', 'trafficking', 'money laundering',
+            'break into', 'burglar', 'robbery',
+            
+            // Hate speech
+            'nazi', 'fascist', 'terrorist', 'supremacy',
+            
+            // Adult content
+            'porn', 'explicit', 'nsfw',
+            
+            // Privacy violations
+            'social security', 'credit card', 'password',
+            
+            // Dangerous weapons
+            'chemical weapon', 'biological weapon'
+        ];
+        
+        const permissiveKeywords = [
+            // Only the most serious threats
+            'bomb', 'explosive', 'terrorist', 'assassinate',
+            'cocaine', 'heroin', 'trafficking',
+            'nazi', 'supremacy',
+            'porn', 'explicit',
+            'chemical weapon', 'biological weapon'
+        ];
+        
+        // Educational context detection - these phrases suggest legitimate research
+        const educationalContext = [
+            'research', 'study', 'academic', 'educational', 'learn about', 'understand',
+            'history of', 'prevention', 'security', 'cybersecurity', 'information security',
+            'ethical hacking', 'penetration testing', 'security audit', 'vulnerability assessment'
+        ];
+        
+        const lowerText = text.toLowerCase();
+        
+        // Check for educational context first
+        const hasEducationalContext = educationalContext.some(phrase => lowerText.includes(phrase));
+        
+        // Select keyword set based on safety level
+        let keywordsToCheck;
+        switch(safetyLevel) {
+            case 'strict':
+                keywordsToCheck = strictKeywords;
+                break;
+            case 'moderate':
+                keywordsToCheck = moderateKeywords;
+                // Allow educational context in moderate mode
+                if (hasEducationalContext) {
+                    keywordsToCheck = permissiveKeywords;
+                }
+                break;
+            case 'permissive':
+                keywordsToCheck = permissiveKeywords;
+                break;
+            default:
+                keywordsToCheck = moderateKeywords;
+        }
+        
+        return keywordsToCheck.some(keyword => lowerText.includes(keyword));
     }
 
     addMessage(content, type) {

@@ -119,18 +119,18 @@
                     </div>
 
                     <div class="parameter-group">
-                        <label>Safety Guards</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="promptGuard" checked>
-                                <span class="checkmark"></span>
-                                Prompt Safety Guard
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="responseGuard" checked>
-                                <span class="checkmark"></span>
-                                Response Safety Guard
-                            </label>
+                        <label for="safetyLevel">Safety Level</label>
+                        <select id="safetyLevel" class="parameter-input">
+                            <option value="strict">Strict - Maximum protection (recommended)</option>
+                            <option value="moderate" selected>Moderate - Balanced filtering</option>
+                            <option value="permissive">Permissive - Minimal filtering (advanced users)</option>
+                        </select>
+                        <div class="parameter-description">
+                            <small>
+                                <strong>Strict:</strong> Blocks most potentially harmful content<br>
+                                <strong>Moderate:</strong> Allows educational/research content with context<br>
+                                <strong>Permissive:</strong> Relies primarily on model-level safety
+                            </small>
                         </div>
                     </div>
                 </div>
