@@ -14,6 +14,127 @@ class LLMPlayground {
         this.loadStoredApiKeys(); // Load API keys from localStorage
         this.checkApiKeySetup(); // Check if setup is needed
         this.loadChatHistory(); // Load saved chat history
+        this.setupAddContentHandlers(); // Setup add content functionality
+    }
+
+    setupAddContentHandlers() {
+        // Toggle add content menu
+        this.addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.addContentMenu.classList.toggle('show');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.addBtn.contains(e.target) && !this.addContentMenu.contains(e.target)) {
+                this.addContentMenu.classList.remove('show');
+                this.webSearchToggle.style.display = 'none';
+            }
+        });
+
+        // File upload functionality
+        this.uploadFileBtn.addEventListener('click', () => {
+            this.fileInput.click();
+            this.addContentMenu.classList.remove('show');
+        });
+
+        this.fileInput.addEventListener('change', (e) => {
+            this.handleFileUpload(e.target.files);
+        });
+
+        // Web search functionality
+        this.webSearchBtn.addEventListener('click', () => {
+            this.webSearchToggle.style.display = this.webSearchToggle.style.display === 'none' ? 'block' : 'none';
+            this.addContentMenu.classList.remove('show');
+        });
+    }
+
+    async handleFileUpload(files) {
+        for (const file of files) {
+            try {
+                const content = await this.readFileContent(file);
+                const fileInfo = `[File: ${file.name}]\n${content}\n\n`;
+                this.userInput.value += fileInfo;
+                this.autoResizeTextarea();
+            } catch (error) {
+                console.error('Error reading file:', error);
+                alert(`Error reading file ${file.name}: ${error.message}`);
+            }
+        }
+    }
+
+    needsWebSearch(message) {
+        // Check if the message contains queries that would benefit from web search
+        const webSearchKeywords = [
+            'weather', 'temperature', 'forecast', 'climate',
+            'news', 'current', 'today', 'latest', 'recent',
+            'stock', 'price', 'market', 'exchange rate',
+            'what is happening', 'what\'s new', 'breaking',
+            'when is', 'when will', 'schedule', 'event',
+            'where is', 'location', 'address', 'directions'
+        ];
+        
+        const lowerMessage = message.toLowerCase();
+        return webSearchKeywords.some(keyword => lowerMessage.includes(keyword));
+    }
+
+    async performWebSearch(query) {
+        try {
+            // Extract search terms from the query
+            const searchQuery = this.extractSearchTerms(query);
+            
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: searchQuery })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Search API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Search failed');
+            }
+
+            // Format search results for context
+            return this.formatSearchResults(data.results);
+            
+        } catch (error) {
+            console.error('Web search error:', error);
+            throw error;
+        }
+    }
+
+    extractSearchTerms(query) {
+        // Simple extraction - remove common question words and focus on key terms
+        const stopWords = ['what', 'is', 'the', 'how', 'when', 'where', 'why', 'who', 'can', 'you', 'tell', 'me', 'about'];
+        const words = query.toLowerCase().split(/\s+/);
+        const searchTerms = words.filter(word => !stopWords.includes(word) && word.length > 2);
+        return searchTerms.join(' ');
+    }
+
+    formatSearchResults(results) {
+        if (!results || results.length === 0) {
+            return 'No relevant information found from web search.';
+        }
+
+        return results.slice(0, 3).map((result, index) => 
+            `${index + 1}. ${result.title}: ${result.snippet}`
+        ).join('\n');
+    }
+
+    readFileContent(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
     }
 
     initializeElements() {
@@ -48,6 +169,17 @@ class LLMPlayground {
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
         this.apiKeysSection = document.getElementById('apiKeysSection');
         this.openaiKey = document.getElementById('openaiKey');
+        
+        // Add content functionality
+        this.addBtn = document.getElementById('addBtn');
+        this.addContentMenu = document.getElementById('addContentMenu');
+        this.uploadFileBtn = document.getElementById('uploadFileBtn');
+        this.webSearchBtn = document.getElementById('webSearchBtn');
+        this.fileInput = document.getElementById('fileInput');
+        this.webSearchToggle = document.getElementById('webSearchToggle');
+        this.webSearchEnabled = document.getElementById('webSearchEnabled');
+        
+        // API Key elements
         this.anthropicKey = document.getElementById('anthropicKey');
         this.googleKey = document.getElementById('googleKey');
         this.groqKey = document.getElementById('groqKey');
@@ -550,6 +682,30 @@ class LLMPlayground {
 
     async callLLMAPI(message) {
         try {
+            // Check if web search is enabled and needed
+            const webSearchEnabled = this.webSearchEnabled && this.webSearchEnabled.checked;
+            const needsSearch = this.needsWebSearch(message);
+            
+            let enhancedMessage = message;
+            
+            if (webSearchEnabled && needsSearch) {
+                try {
+                    const searchResults = await this.performWebSearch(message);
+                    if (searchResults && searchResults.trim()) {
+                        enhancedMessage = `Based on the following web search results, please provide a comprehensive answer to the user's question.
+
+Web Search Results:
+${searchResults}
+
+User Question: ${message}
+
+Please use the web search results above to provide an accurate, up-to-date answer. If the search results don't contain relevant information, please mention that and provide general guidance.`;
+                    }
+                } catch (searchError) {
+                    console.warn('Web search failed, proceeding with original message:', searchError);
+                }
+            }
+            
             const provider = this.modelProvider.value;
             const model = this.modelSelection.value;
             const systemPrompt = this.systemPrompt ? this.systemPrompt.value : '';
@@ -564,7 +720,7 @@ class LLMPlayground {
             const requestData = {
                 provider: provider,
                 model: model,
-                message: message,
+                message: enhancedMessage,
                 parameters: {
                     systemPrompt: systemPrompt,
                     temperature: temperature,
@@ -1135,10 +1291,13 @@ class LLMPlayground {
 
     // Show settings modal for key management
     showSettingsModal() {
-        // Create settings modal if it doesn't exist
-        if (!document.getElementById('settingsModal')) {
-            this.createSettingsModal();
+        // Always recreate the modal to ensure fresh data from localStorage
+        const existingModal = document.getElementById('settingsModal');
+        if (existingModal) {
+            existingModal.remove();
         }
+        
+        this.createSettingsModal();
         
         const modal = document.getElementById('settingsModal');
         modal.style.display = 'flex';
@@ -1153,7 +1312,7 @@ class LLMPlayground {
             <div id="settingsModal" class="setup-modal">
                 <div class="setup-modal-content">
                     <h2>⚙️ API Key Settings</h2>
-                    <p>Manage your stored API keys. Changes are saved automatically.</p>
+                    <p>Manage your stored API keys. Click "Save Changes" to apply your updates.</p>
                     
                     <div class="setup-form">
                         <div class="setup-section">
@@ -1163,27 +1322,29 @@ class LLMPlayground {
                             <div class="setup-key-group">
                                 <label for="settingsOpenaiKey">OpenAI API Key</label>
                                 <input type="password" id="settingsOpenaiKey" placeholder="sk-..." value="${keys.openai || ''}" />
-                                <small>Status: ${keys.openai ? '✅ Configured' : '❌ Not set'}</small>
+                                <small id="openaiStatus">Status: ${keys.openai ? '✅ Configured' : '❌ Not set'}</small>
                             </div>
                             
                             <div class="setup-key-group">
                                 <label for="settingsAnthropicKey">Anthropic API Key</label>
                                 <input type="password" id="settingsAnthropicKey" placeholder="sk-ant-..." value="${keys.anthropic || ''}" />
-                                <small>Status: ${keys.anthropic ? '✅ Configured' : '❌ Not set'}</small>
+                                <small id="anthropicStatus">Status: ${keys.anthropic ? '✅ Configured' : '❌ Not set'}</small>
                             </div>
                             
                             <div class="setup-key-group">
                                 <label for="settingsGoogleKey">Google API Key</label>
                                 <input type="password" id="settingsGoogleKey" placeholder="AIza..." value="${keys.google || ''}" />
-                                <small>Status: ${keys.google ? '✅ Configured' : '❌ Not set'}</small>
+                                <small id="googleStatus">Status: ${keys.google ? '✅ Configured' : '❌ Not set'}</small>
                             </div>
                             
                             <div class="setup-key-group">
                                 <label for="settingsGroqKey">Groq API Key</label>
                                 <input type="password" id="settingsGroqKey" placeholder="gsk_..." value="${keys.groq || ''}" />
-                                <small>Status: ${keys.groq ? '✅ Configured' : '❌ Not set'}</small>
+                                <small id="groqStatus">Status: ${keys.groq ? '✅ Configured' : '❌ Not set'}</small>
                             </div>
                         </div>
+                        
+                        <div id="settingsFeedback" style="display: none; margin: 1rem 0; padding: 0.75rem; border-radius: 0.5rem; text-align: center; font-weight: 500;"></div>
                         
                         <div class="setup-actions">
                             <button id="saveSettings" class="setup-btn primary">Save Changes</button>
@@ -1207,6 +1368,22 @@ class LLMPlayground {
         const clearBtn = document.getElementById('clearAllKeys');
         const closeBtn = document.getElementById('closeSettings');
         
+        // Add input event listeners to update status in real-time
+        const settingsInputs = [
+            document.getElementById('settingsOpenaiKey'),
+            document.getElementById('settingsAnthropicKey'),
+            document.getElementById('settingsGoogleKey'),
+            document.getElementById('settingsGroqKey')
+        ];
+        
+        settingsInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.updateSettingsStatus();
+                });
+            }
+        });
+        
         // Save settings
         saveBtn.addEventListener('click', () => {
             this.saveSettingsChanges();
@@ -1216,7 +1393,6 @@ class LLMPlayground {
         clearBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to clear all API keys? This will require you to set them up again.')) {
                 this.clearStoredApiKeys();
-                document.getElementById('settingsModal').style.display = 'none';
             }
         });
         
@@ -1247,28 +1423,107 @@ class LLMPlayground {
             if (!settingsKeys[key]) delete settingsKeys[key];
         });
         
-        // Save to localStorage
+        // Show feedback
+        const feedbackDiv = document.getElementById('settingsFeedback');
+        const isClearing = Object.keys(settingsKeys).length === 0;
+        
+        // Save to localStorage (or clear if no keys)
         if (Object.keys(settingsKeys).length > 0) {
             localStorage.setItem('llm_api_keys', JSON.stringify(settingsKeys));
-            
-            // Update the main form
-            this.loadStoredApiKeys();
-            
-            // Show success message
-            this.addMessage('✅ API key settings updated successfully!', 'system');
-            
-            // Close modal
-            document.getElementById('settingsModal').style.display = 'none';
         } else {
-            alert('Please provide at least one API key.');
+            // If no keys provided, just clear localStorage (don't show setup modal yet)
+            localStorage.removeItem('llm_api_keys');
+        }
+        
+        // Update the main form
+        this.loadStoredApiKeys();
+        
+        // Always show success feedback for "Save Changes"
+        feedbackDiv.style.display = 'block';
+        feedbackDiv.style.background = '#10b981';
+        feedbackDiv.style.color = 'white';
+        feedbackDiv.textContent = '✅ Changes saved successfully!';
+        
+        // Hide feedback after 3 seconds but keep modal open
+        setTimeout(() => {
+            feedbackDiv.style.display = 'none';
+        }, 3000);
+        
+        // If we cleared all keys, handle the setup modal separately
+        if (isClearing) {
+            // Clear main input fields and disable toggle after a delay
+            setTimeout(() => {
+                this.openaiKey.value = '';
+                this.anthropicKey.value = '';
+                this.googleKey.value = '';
+                this.groqKey.value = '';
+                this.apiKeyToggle.checked = false;
+                this.toggleApiKeySection();
+                
+                // Close settings modal and show setup modal
+                document.getElementById('settingsModal').style.display = 'none';
+                setTimeout(() => {
+                    this.showSetupModal();
+                }, 300);
+            }, 3000);
         }
     }
 
     // Clear stored API keys (for settings management)
     clearStoredApiKeys() {
+        // Only clear the input fields and status displays, don't remove from localStorage yet
+        // The actual removal will happen when "Save Changes" is clicked
+        
+        // Clear settings modal input fields if they exist
+        const settingsOpenaiKey = document.getElementById('settingsOpenaiKey');
+        const settingsAnthropicKey = document.getElementById('settingsAnthropicKey');
+        const settingsGoogleKey = document.getElementById('settingsGoogleKey');
+        const settingsGroqKey = document.getElementById('settingsGroqKey');
+        
+        if (settingsOpenaiKey) settingsOpenaiKey.value = '';
+        if (settingsAnthropicKey) settingsAnthropicKey.value = '';
+        if (settingsGoogleKey) settingsGoogleKey.value = '';
+        if (settingsGroqKey) settingsGroqKey.value = '';
+        
+        // Update status displays in settings modal
+        this.updateSettingsStatus();
+    }
+    
+    // Update status displays in settings modal based on current input values
+    updateSettingsStatus() {
+        const settingsOpenaiKey = document.getElementById('settingsOpenaiKey');
+        const settingsAnthropicKey = document.getElementById('settingsAnthropicKey');
+        const settingsGoogleKey = document.getElementById('settingsGoogleKey');
+        const settingsGroqKey = document.getElementById('settingsGroqKey');
+        
+        const openaiStatus = document.getElementById('openaiStatus');
+        const anthropicStatus = document.getElementById('anthropicStatus');
+        const googleStatus = document.getElementById('googleStatus');
+        const groqStatus = document.getElementById('groqStatus');
+        
+        if (openaiStatus) {
+            openaiStatus.textContent = settingsOpenaiKey && settingsOpenaiKey.value.trim() 
+                ? 'Status: ✅ Configured' : 'Status: ❌ Not set';
+        }
+        if (anthropicStatus) {
+            anthropicStatus.textContent = settingsAnthropicKey && settingsAnthropicKey.value.trim() 
+                ? 'Status: ✅ Configured' : 'Status: ❌ Not set';
+        }
+        if (googleStatus) {
+            googleStatus.textContent = settingsGoogleKey && settingsGoogleKey.value.trim() 
+                ? 'Status: ✅ Configured' : 'Status: ❌ Not set';
+        }
+        if (groqStatus) {
+            groqStatus.textContent = settingsGroqKey && settingsGroqKey.value.trim() 
+                ? 'Status: ✅ Configured' : 'Status: ❌ Not set';
+        }
+    }
+    
+    // Permanently clear stored API keys (called when saving empty keys)
+    permanentlyClearStoredApiKeys() {
         localStorage.removeItem('llm_api_keys');
         
-        // Clear input fields
+        // Clear main input fields
         this.openaiKey.value = '';
         this.anthropicKey.value = '';
         this.googleKey.value = '';

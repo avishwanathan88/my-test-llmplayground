@@ -1,0 +1,10 @@
+This is a test file for the file upload functionality.
+
+It contains some sample content that should be uploaded and displayed in the chat input when the file upload feature is used.
+
+Features to test:
+1. File upload via the + button menu
+2. Web search functionality for weather queries
+3. Enhanced location-based responses
+
+Test completed successfully!

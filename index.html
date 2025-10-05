@@ -176,12 +176,34 @@
                     <!-- Centered Input Area (Fixed at bottom) -->
                     <div class="centered-input-area">
                         <div class="modern-input-container">
-                            <button id="addBtn" class="input-icon-btn add-btn" title="Add Content">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                </svg>
-                            </button>
+                            <div class="add-content-dropdown">
+                                <button id="addBtn" class="input-icon-btn add-btn" title="Add Content">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </button>
+                                <div class="add-content-menu" id="addContentMenu">
+                                    <div class="add-content-item" id="uploadFileBtn">
+                                        <i class="fas fa-file-upload"></i>
+                                        <span>Upload Files</span>
+                                    </div>
+                                    <div class="add-content-item" id="webSearchBtn">
+                                        <i class="fas fa-search"></i>
+                                        <span>Search Web</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="file" id="fileInput" multiple accept=".txt,.md,.js,.py,.html,.css,.json,.xml,.csv" style="display: none;">
+                            <div class="web-search-toggle" id="webSearchToggle" style="display: none;">
+                                <label class="toggle-container">
+                                    <input type="checkbox" id="webSearchEnabled" class="toggle-checkbox">
+                                    <span class="toggle-label">
+                                        <span class="toggle-slider"></span>
+                                    </span>
+                                    <span class="toggle-text">Web Search Enabled</span>
+                                </label>
+                            </div>
                             <textarea id="userInput" placeholder="Ask anything" rows="1"></textarea>
                             <div class="input-right-actions">
                                 <button id="voiceBtn" class="input-icon-btn voice-btn" title="Voice Input">
