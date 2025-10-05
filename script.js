@@ -2,6 +2,8 @@
 class LLMPlayground {
     constructor() {
         this.chatHistory = [];
+        this.savedChats = JSON.parse(localStorage.getItem('savedChats') || '[]');
+        this.currentChatId = null;
         this.currentModel = 'openai';
         this.isGenerating = false;
         
@@ -11,6 +13,7 @@ class LLMPlayground {
         this.updateParameterDisplays();
         this.loadStoredApiKeys(); // Load API keys from localStorage
         this.checkApiKeySetup(); // Check if setup is needed
+        this.loadChatHistory(); // Load saved chat history
     }
 
     initializeElements() {
@@ -33,6 +36,13 @@ class LLMPlayground {
         this.voiceBtn = document.getElementById('voiceBtn');
         this.attachBtn = document.getElementById('attachBtn');
         this.loadingModal = document.getElementById('loadingModal');
+        
+        // Navigation elements
+        this.newChatBtn = document.getElementById('newChatBtn');
+        this.chatHistoryBtn = document.getElementById('chatHistoryBtn');
+        this.chatHistoryContent = document.getElementById('chatHistoryContent');
+        this.parametersBtn = document.getElementById('parametersBtn');
+        this.parametersContent = document.getElementById('parametersContent');
         
         // API Key elements
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
@@ -89,6 +99,11 @@ class LLMPlayground {
             });
         }
 
+        // Navigation events
+        if (this.newChatBtn) this.newChatBtn.addEventListener('click', () => this.startNewChat());
+        if (this.chatHistoryBtn) this.chatHistoryBtn.addEventListener('click', () => this.toggleChatHistory());
+        if (this.parametersBtn) this.parametersBtn.addEventListener('click', () => this.toggleParameters());
+
         // Model provider change event
         if (this.modelProvider) this.modelProvider.addEventListener('change', () => {
             console.log('Provider changed to:', this.modelProvider.value);
@@ -102,16 +117,24 @@ class LLMPlayground {
         });
 
         // Parameter change events
-        if (this.temperature) this.temperature.addEventListener('input', () => this.updateParameterDisplay('temperature'));
-        if (this.maxTokens) this.maxTokens.addEventListener('input', () => this.updateParameterDisplay('maxTokens'));
-        if (this.presencePenalty) this.presencePenalty.addEventListener('input', () => this.updateParameterDisplay('presencePenalty'));
-        if (this.frequencyPenalty) this.frequencyPenalty.addEventListener('input', () => this.updateParameterDisplay('frequencyPenalty'));
+        ['temperature', 'maxTokens', 'presencePenalty', 'frequencyPenalty'].forEach(param => {
+            const element = document.getElementById(param);
+            if (element) {
+                element.addEventListener('input', () => this.updateParameterDisplay(param));
+            }
+        });
+
+        // Template selection
+        const templateSelect = document.getElementById('templateSelect');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', () => this.applyTemplate());
+        }
 
         // Action button events
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearChat());
         if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.saveConversation());
         if (this.settingsBtn) this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
-        if (this.voiceBtn) this.voiceBtn.addEventListener('click', () => this.handleVoiceInput());
+        if (this.voiceBtn) this.voiceBtn.addEventListener('click', () => this.toggleVoiceInput());
         
         // API Key toggle event
         if (this.apiKeyToggle) {
@@ -137,6 +160,133 @@ class LLMPlayground {
         
         // Prompt suggestion cards
         this.bindPromptCards();
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-dropdown')) {
+                this.closeChatHistory();
+            }
+            if (!e.target.closest('.parameters-dropdown')) {
+                this.closeParameters();
+            }
+        });
+    }
+    
+    // Navigation Methods
+    startNewChat() {
+        // Save current conversation to history if it exists
+        if (this.chatHistory.length > 0) {
+            this.saveChatToHistory();
+        }
+        
+        // Start fresh
+        this.currentChatId = null;
+        this.chatHistory = [];
+        this.clearChatDisplay();
+        this.showPromptSuggestions();
+    }
+
+    toggleChatHistory() {
+        const dropdown = this.chatHistoryBtn.parentElement;
+        dropdown.classList.toggle('active');
+    }
+
+    closeChatHistory() {
+        const dropdown = this.chatHistoryBtn.parentElement;
+        dropdown.classList.remove('active');
+    }
+
+    toggleParameters() {
+        const dropdown = this.parametersBtn.parentElement;
+        dropdown.classList.toggle('active');
+    }
+
+    closeParameters() {
+        const dropdown = this.parametersBtn.parentElement;
+        dropdown.classList.remove('active');
+    }
+
+    loadChatHistory() {
+        const historyContent = this.chatHistoryContent;
+        if (!historyContent) return;
+
+        if (this.savedChats.length === 0) {
+            historyContent.innerHTML = '<div class="chat-history-empty"><p>No chat history yet</p></div>';
+            return;
+        }
+
+        historyContent.innerHTML = this.savedChats.map(chat => `
+            <div class="chat-history-item" data-chat-id="${chat.id}">
+                <div class="chat-history-title">${chat.title}</div>
+                <div class="chat-history-preview">${chat.preview}</div>
+            </div>
+        `).join('');
+
+        // Bind click events for chat history items
+        historyContent.querySelectorAll('.chat-history-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const chatId = item.dataset.chatId;
+                this.loadChat(chatId);
+                this.closeChatHistory();
+            });
+        });
+    }
+
+    loadChat(chatId) {
+        const chat = this.savedChats.find(c => c.id === chatId);
+        if (!chat) return;
+
+        this.currentChatId = chatId;
+        this.chatHistory = chat.messages;
+        this.displayChatHistory();
+        this.hidePromptSuggestions();
+    }
+
+    displayChatHistory() {
+        this.chatMessages.innerHTML = '';
+        this.chatHistory.forEach(message => {
+            this.addMessage(message.content, message.type);
+        });
+        this.chatMessages.style.display = 'block';
+    }
+
+    saveChatToHistory() {
+        if (this.chatHistory.length === 0) return;
+
+        const firstUserMessage = this.chatHistory.find(msg => msg.type === 'user');
+        const title = firstUserMessage ? 
+            firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '') :
+            'New Chat';
+        
+        const preview = firstUserMessage ? 
+            firstUserMessage.content.substring(0, 100) + (firstUserMessage.content.length > 100 ? '...' : '') :
+            '';
+
+        const chatData = {
+            id: this.currentChatId || Date.now().toString(),
+            title,
+            preview,
+            messages: [...this.chatHistory],
+            timestamp: new Date().toISOString()
+        };
+
+        if (this.currentChatId) {
+            // Update existing chat
+            const index = this.savedChats.findIndex(c => c.id === this.currentChatId);
+            if (index !== -1) {
+                this.savedChats[index] = chatData;
+            }
+        } else {
+            // Add new chat
+            this.currentChatId = chatData.id;
+            this.savedChats.unshift(chatData);
+        }
+
+        // Keep only last 50 chats
+        this.savedChats = this.savedChats.slice(0, 50);
+        
+        localStorage.setItem('savedChats', JSON.stringify(this.savedChats));
+        this.loadChatHistory();
     }
     
     bindPromptCards() {
@@ -245,16 +395,16 @@ class LLMPlayground {
         // Map parameter names to their corresponding display element IDs
         switch(parameter) {
             case 'temperature':
-                displayElementId = 'tempValue';
+                displayElementId = 'temperatureValue';
                 break;
             case 'maxTokens':
-                displayElementId = 'tokensValue';
+                displayElementId = 'maxTokensValue';
                 break;
             case 'presencePenalty':
-                displayElementId = 'presenceValue';
+                displayElementId = 'presencePenaltyValue';
                 break;
             case 'frequencyPenalty':
-                displayElementId = 'frequencyValue';
+                displayElementId = 'frequencyPenaltyValue';
                 break;
             default:
                 displayElementId = parameter + 'Value';
@@ -269,7 +419,10 @@ class LLMPlayground {
             } else if (parameter === 'maxTokens') {
                 formattedValue = parseInt(value);
             }
+            
             displayElement.textContent = formattedValue;
+        } else {
+            console.warn(`Display element not found: ${displayElementId}`);
         }
     }
 
@@ -306,13 +459,24 @@ class LLMPlayground {
     }
 
     applyTemplate() {
-        const selectedTemplate = this.templateSelect.value;
+        const templateSelect = document.getElementById('templateSelect');
+        if (!templateSelect) return;
+        
+        const selectedTemplate = templateSelect.value;
         if (selectedTemplate && this.templates[selectedTemplate]) {
             const template = this.templates[selectedTemplate];
             
             this.systemPrompt.value = template.systemPrompt;
             this.temperature.value = template.temperature;
             this.maxTokens.value = template.maxTokens;
+            
+            this.updateParameterDisplays();
+        } else if (selectedTemplate === '') {
+            // Clear system prompt when no template is selected
+            this.systemPrompt.value = '';
+            // Reset to default values
+            this.temperature.value = 0.7;
+            this.maxTokens.value = 2048;
             
             this.updateParameterDisplays();
         }
@@ -371,8 +535,13 @@ class LLMPlayground {
             }
             
             this.addMessage(response, 'assistant');
+            
+            // Auto-save chat to history after successful response
+            this.saveChatToHistory();
         } catch (error) {
-            this.addMessage('Sorry, there was an error processing your request.', 'error');
+            // Display the actual error message instead of generic one
+            const errorMessage = error.message || 'Sorry, there was an error processing your request.';
+            this.addMessage(errorMessage, 'error');
             console.error('Error:', error);
         } finally {
             this.setGenerating(false);
@@ -388,6 +557,8 @@ class LLMPlayground {
             const maxTokens = parseInt(this.maxTokens.value);
             const presencePenalty = parseFloat(this.presencePenalty.value);
             const frequencyPenalty = parseFloat(this.frequencyPenalty.value);
+            const seed = this.seed && this.seed.value ? parseInt(this.seed.value) : null;
+            const stopSequence = this.stopSequence && this.stopSequence.value ? this.stopSequence.value.split(',').map(s => s.trim()).filter(s => s) : null;
             
             // Prepare request payload
             const requestData = {
@@ -399,7 +570,9 @@ class LLMPlayground {
                     temperature: temperature,
                     maxTokens: maxTokens,
                     presencePenalty: presencePenalty,
-                    frequencyPenalty: frequencyPenalty
+                    frequencyPenalty: frequencyPenalty,
+                    seed: seed,
+                    stopSequence: stopSequence
                 }
             };
             
@@ -661,18 +834,22 @@ class LLMPlayground {
         console.log(`Switched to: ${modelInfo[this.currentModel]}`);
     }
 
+    clearChatDisplay() {
+        this.chatMessages.innerHTML = '';
+        this.chatMessages.style.display = 'none';
+        
+        // Show welcome section and prompt suggestions when chat is cleared
+        const welcomeSection = document.querySelector('.welcome-section');
+        if (welcomeSection) {
+            welcomeSection.style.display = 'block';
+        }
+        this.showPromptSuggestions();
+    }
+
     clearChat() {
         if (confirm('Are you sure you want to clear the chat history?')) {
-            this.chatMessages.innerHTML = '';
-            this.chatMessages.style.display = 'none';
             this.chatHistory = [];
-            
-            // Show welcome section and prompt suggestions when chat is cleared
-            const welcomeSection = document.querySelector('.welcome-section');
-            if (welcomeSection) {
-                welcomeSection.style.display = 'block';
-            }
-            this.showPromptSuggestions();
+            this.clearChatDisplay();
         }
     }
 
@@ -709,6 +886,10 @@ class LLMPlayground {
         URL.revokeObjectURL(url);
     }
 
+    handleVoiceInput() {
+        this.toggleVoiceInput();
+    }
+    
     toggleVoiceInput() {
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -745,6 +926,10 @@ class LLMPlayground {
         }
     }
 
+    handleFileAttachment() {
+        this.attachFile();
+    }
+    
     attachFile() {
         const input = document.createElement('input');
         input.type = 'file';
@@ -773,13 +958,13 @@ class LLMPlayground {
             try {
                 const keys = JSON.parse(storedKeys);
                 // Populate the input fields with stored keys
-                if (keys.openai) this.openaiKey.value = keys.openai;
-                if (keys.anthropic) this.anthropicKey.value = keys.anthropic;
-                if (keys.google) this.googleKey.value = keys.google;
-                if (keys.groq) this.groqKey.value = keys.groq;
+                if (keys.openai && this.openaiKey) this.openaiKey.value = keys.openai;
+                if (keys.anthropic && this.anthropicKey) this.anthropicKey.value = keys.anthropic;
+                if (keys.google && this.googleKey) this.googleKey.value = keys.google;
+                if (keys.groq && this.groqKey) this.groqKey.value = keys.groq;
                 
                 // Enable the toggle if keys are stored
-                if (Object.keys(keys).length > 0) {
+                if (Object.keys(keys).length > 0 && this.apiKeyToggle) {
                     this.apiKeyToggle.checked = true;
                     this.toggleApiKeySection();
                 }

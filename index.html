@@ -17,8 +17,95 @@
             </div>
             <div class="header-actions">
                 <button class="btn-secondary" id="settingsBtn" title="Manage API Keys">
-                    <i class="fas fa-cog"></i> Settings
+                    <i class="fas fa-cog"></i> API Key Settings
                 </button>
+                <div class="parameters-dropdown">
+                    <button class="parameters-dropdown-btn btn-secondary" id="parametersBtn">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Model Parameters</span>
+                        <i class="fas fa-chevron-down dropdown-arrow"></i>
+                    </button>
+                    <div class="parameters-dropdown-content" id="parametersContent">
+                        <div class="parameter-group">
+                            <label for="modelProvider">Model Provider</label>
+                            <select id="modelProvider" class="modern-select">
+                                <option value="openai">OpenAI</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="google">Google</option>
+                                <option value="groq">Groq</option>
+                            </select>
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="modelSelection">Model</label>
+                            <select id="modelSelection" class="modern-select">
+                                <option value="gpt-4">GPT-4</option>
+                            </select>
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="systemPrompt">System Prompt</label>
+                            <textarea id="systemPrompt" class="modern-textarea" placeholder="You are a helpful assistant."></textarea>
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="temperature">Temperature: <span id="temperatureValue">0.7</span></label>
+                            <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="modern-slider">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="maxTokens">Max Tokens: <span id="maxTokensValue">2048</span></label>
+                            <input type="range" id="maxTokens" min="1" max="4096" step="1" value="2048" class="modern-slider">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="presencePenalty">Presence Penalty: <span id="presencePenaltyValue">0</span></label>
+                            <input type="range" id="presencePenalty" min="-2" max="2" step="0.1" value="0" class="modern-slider">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="frequencyPenalty">Frequency Penalty: <span id="frequencyPenaltyValue">0</span></label>
+                            <input type="range" id="frequencyPenalty" min="-2" max="2" step="0.1" value="0" class="modern-slider">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="seed">Seed (optional)</label>
+                            <input type="number" id="seed" class="modern-input" placeholder="Random seed for reproducibility">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="stopSequence">Stop Sequence (optional)</label>
+                            <input type="text" id="stopSequence" class="modern-input" placeholder="Comma-separated stop sequences">
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="templateSelect">Template</label>
+                            <select id="templateSelect" class="modern-select">
+                                <option value="">Select a template...</option>
+                                <option value="creative">Creative Writing</option>
+                                <option value="code">Code Assistant</option>
+                                <option value="analysis">Data Analysis</option>
+                                <option value="chat">Casual Chat</option>
+                            </select>
+                        </div>
+                        
+                        <div class="parameter-group">
+                            <label for="safetyLevel">Safety Level</label>
+                            <select id="safetyLevel" class="modern-select">
+                                <option value="strict">Strict - Maximum protection (recommended)</option>
+                                <option value="moderate" selected>Moderate - Balanced filtering</option>
+                                <option value="permissive">Permissive - Minimal filtering (advanced users)</option>
+                            </select>
+                            <div class="parameter-description">
+                                <small>
+                                    <strong>Strict:</strong> Blocks most potentially harmful content<br>
+                                    <strong>Moderate:</strong> Allows educational/research content with context<br>
+                                    <strong>Permissive:</strong> Relies primarily on model-level safety
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <button class="btn-secondary" id="clearBtn">
                     <i class="fas fa-trash"></i> Clear
                 </button>
@@ -29,9 +116,32 @@
         </header>
 
         <div class="main-content">
-            <!-- Sidebar - Hidden for centered layout -->
-            <aside class="sidebar">
-            <!-- API Keys Section - Hidden (managed through setup modal) -->
+            <!-- Left Navigation Sidebar -->
+            <aside class="nav-sidebar">
+                <div class="nav-section">
+                    <button class="nav-btn new-chat-btn" id="newChatBtn">
+                        <i class="fas fa-plus"></i>
+                        <span>New Chat</span>
+                    </button>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-dropdown">
+                        <button class="nav-dropdown-btn" id="chatHistoryBtn">
+                            <i class="fas fa-history"></i>
+                            <span>Chat History</span>
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
+                        </button>
+                        <div class="nav-dropdown-content" id="chatHistoryContent">
+                            <div class="chat-history-empty">
+                                <p>No chat history yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Hidden API Keys Section (managed through setup modal) -->
             <div class="api-keys-section" style="display: none;">
                 <div class="input-group">
                     <input type="password" id="openaiKey" />
@@ -50,99 +160,13 @@
                 </div>
             </div>
 
-            <div class="section">
-                <h3>Model Parameters</h3>
-                    
-                    <div class="parameter-group">
-                        <label for="modelProvider">Model Provider</label>
-                        <select id="modelProvider" class="modern-select">
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="google">Google</option>
-                            <option value="groq">Groq</option>
-                        </select>
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="modelSelection">Model Selection</label>
-                        <select id="modelSelection" class="modern-select">
-                            <option value="gpt-4">GPT-4</option>
-                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                        </select>
-                    </div>
-                    
-                    <div class="parameter-group">
-                        <label for="temperature">Temperature: <span id="tempValue">0.7</span></label>
-                        <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="slider">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="maxTokens">Max Tokens: <span id="tokensValue">1024</span></label>
-                        <input type="range" id="maxTokens" min="1" max="4096" step="1" value="1024" class="slider">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="presencePenalty">Presence Penalty: <span id="presenceValue">0.0</span></label>
-                        <input type="range" id="presencePenalty" min="-2" max="2" step="0.1" value="0" class="slider">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="frequencyPenalty">Frequency Penalty: <span id="frequencyValue">0.0</span></label>
-                        <input type="range" id="frequencyPenalty" min="-2" max="2" step="0.1" value="0" class="slider">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="seed">Seed (optional)</label>
-                        <input type="number" id="seed" class="number-input" placeholder="Random seed">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="stopSequence">Stop Sequence</label>
-                        <input type="text" id="stopSequence" class="text-input" placeholder="e.g., \n, END">
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="systemPrompt">System Prompt</label>
-                        <textarea id="systemPrompt" class="text-input" rows="3" placeholder="Enter system prompt to guide the AI's behavior..."></textarea>
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="templateSelect">Templates</label>
-                        <select id="templateSelect" class="select-input">
-                            <option value="">Select a template...</option>
-                            <option value="creative">Creative Writing</option>
-                            <option value="code">Code Assistant</option>
-                            <option value="analysis">Data Analysis</option>
-                            <option value="chat">Casual Chat</option>
-                        </select>
-                    </div>
-
-                    <div class="parameter-group">
-                        <label for="safetyLevel">Safety Level</label>
-                        <select id="safetyLevel" class="parameter-input">
-                            <option value="strict">Strict - Maximum protection (recommended)</option>
-                            <option value="moderate" selected>Moderate - Balanced filtering</option>
-                            <option value="permissive">Permissive - Minimal filtering (advanced users)</option>
-                        </select>
-                        <div class="parameter-description">
-                            <small>
-                                <strong>Strict:</strong> Blocks most potentially harmful content<br>
-                                <strong>Moderate:</strong> Allows educational/research content with context<br>
-                                <strong>Permissive:</strong> Relies primarily on model-level safety
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
             <!-- Main Chat Area -->
             <main class="chat-area">
                 <div class="centered-chat-container">
                     <!-- Welcome Message -->
                     <div class="welcome-section">
                         <h1 class="main-title">Welcome to LLM Playground</h1>
-                        <p class="main-subtitle">Select a model from the sidebar and start chatting!</p>
+                        <p class="main-subtitle">Select a model from the parameters and start chatting!</p>
                     </div>
                     
                     <!-- Chat Messages (Hidden initially, positioned above input) -->

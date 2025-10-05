@@ -41,12 +41,12 @@ function validateRequest(provider, model) {
 
 // Format request based on provider
 function formatRequest(provider, model, message, parameters) {
-    const { temperature = 0.7, maxTokens, presencePenalty = 0, frequencyPenalty = 0 } = parameters;
+    const { temperature = 0.7, maxTokens, presencePenalty = 0, frequencyPenalty = 0, seed, stopSequence } = parameters;
     
     switch (provider) {
         case 'openai':
         case 'groq':
-            return {
+            const openaiRequest = {
                 model: model,
                 messages: [{ role: 'user', content: message }],
                 temperature: temperature,
@@ -55,18 +55,38 @@ function formatRequest(provider, model, message, parameters) {
                 frequency_penalty: frequencyPenalty
             };
             
+            // Add seed if provided (OpenAI and Groq support this)
+            if (seed !== null && seed !== undefined) {
+                openaiRequest.seed = seed;
+            }
+            
+            // Add stop sequences if provided
+            if (stopSequence && stopSequence.length > 0) {
+                openaiRequest.stop = stopSequence;
+            }
+            
+            return openaiRequest;
+            
         case 'anthropic':
-            return {
+            const anthropicRequest = {
                 model: model,
                 max_tokens: maxTokens || 1024,
                 temperature: temperature,
                 messages: [{ role: 'user', content: message }]
             };
             
+            // Anthropic doesn't support seed parameter
+            // Add stop sequences if provided
+            if (stopSequence && stopSequence.length > 0) {
+                anthropicRequest.stop_sequences = stopSequence;
+            }
+            
+            return anthropicRequest;
+            
         case 'google':
             // Google API requires a minimum of 2 tokens
             const googleMaxTokens = Math.max(maxTokens || 1024, 2);
-            return {
+            const googleRequest = {
                 contents: [{ parts: [{ text: message }] }],
                 generationConfig: {
                     temperature: temperature,
@@ -75,6 +95,18 @@ function formatRequest(provider, model, message, parameters) {
                     topK: Math.max(1, Math.round(40 * (1 - frequencyPenalty)))
                 }
             };
+            
+            // Google supports seed parameter
+            if (seed !== null && seed !== undefined) {
+                googleRequest.generationConfig.seed = seed;
+            }
+            
+            // Add stop sequences if provided
+            if (stopSequence && stopSequence.length > 0) {
+                googleRequest.generationConfig.stopSequences = stopSequence;
+            }
+            
+            return googleRequest;
             
         default:
             throw new Error(`Request formatting not implemented for provider: ${provider}`);
